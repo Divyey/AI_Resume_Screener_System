@@ -3,6 +3,8 @@
 Resume screening app using **spaCy** and **FAISS DB**.
 Full-stack: FastAPI backend + Vite-React frontend.
 
+![Resume Screener 2 0](https://github.com/user-attachments/assets/ecc20fe5-e461-4ad5-a7a4-daf0f69832c5)
+
 ---
 
 ## Versions
