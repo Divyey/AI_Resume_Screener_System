@@ -1,16 +1,91 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import axios from "axios";
 import styles from "./App.module.css";
 
 const API_BASE = "http://localhost:8000";
 
-function ResultsTable({ results, highlight }) {
-  const [sortKey, setSortKey] = useState(
-    highlight === "vector" ? "vector_match_score" : "spacy_match_score"
+// Theme Toggle Switch
+function ThemeSwitch({ theme, setTheme }) {
+  return (
+    <div className={styles.themeSwitchWrapper}>
+      <span className={styles.themeIcon}>🌞</span>
+      <label className={styles.switch}>
+        <input
+          type="checkbox"
+          checked={theme === "dark"}
+          onChange={() => setTheme(theme === "light" ? "dark" : "light")}
+          aria-label="Toggle light/dark mode"
+        />
+        <span className={styles.slider}></span>
+      </label>
+      <span className={styles.themeIcon}>🌙</span>
+    </div>
   );
+}
+
+// Custom Stepper
+function Stepper({ value, setValue, min = 1, max = 20 }) {
+  const handleChange = (e) => {
+    let val = parseInt(e.target.value, 10);
+    if (isNaN(val)) val = min;
+    if (val < min) val = min;
+    if (val > max) val = max;
+    setValue(val);
+  };
+  const handleStep = (delta) => {
+    setValue((prev) => {
+      let next = prev + delta;
+      if (next < min) next = min;
+      if (next > max) next = max;
+      return next;
+    });
+  };
+  return (
+    <div className={styles.stepper}>
+      <button
+        type="button"
+        className={styles.stepperBtn}
+        onClick={() => handleStep(-1)}
+        aria-label="Decrease"
+        disabled={value <= min}
+      >–</button>
+      <input
+        type="number"
+        min={min}
+        max={max}
+        value={value}
+        onChange={handleChange}
+        className={styles.stepperInput}
+        aria-label="Top K"
+      />
+      <button
+        type="button"
+        className={styles.stepperBtn}
+        onClick={() => handleStep(1)}
+        aria-label="Increase"
+        disabled={value >= max}
+      >+</button>
+    </div>
+  );
+}
+
+// Score color logic
+function getScoreClass(score) {
+  if (score === undefined || score === null) return "";
+  if (score >= 90) return "scoreStrongGreen";
+  if (score >= 75) return "scoreLightGreen";
+  if (score >= 60) return "scoreGold";
+  if (score >= 40) return "scoreDarkYellow";
+  return "scoreLightRed";
+}
+
+// Results table with OpenAI HR Score as "Score"
+function ResultsTable({ results, highlight }) {
+  const [sortKey, setSortKey] = useState("openai_hr_score");
   const [sortOrder, setSortOrder] = useState("desc");
 
   const getSortValue = (r, key) => {
+    if (key === "openai_hr_score") return r.openai_hr_score ?? 0;
     if (key === "resume_score") return r.resume_score ?? r.vector_match_score ?? 0;
     if (key === "spacy_match_score") return r.spacy_match_score ?? 0;
     if (key === "vector_match_score") return r.vector_match_score ?? 0;
@@ -34,89 +109,112 @@ function ResultsTable({ results, highlight }) {
   };
 
   return (
-    <table className={styles.resultsTable}>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th style={{ cursor: "pointer" }} onClick={() => handleSort("resume_score")}>
-            Score {sortKey === "resume_score" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-          </th>
-          <th style={{ cursor: "pointer" }} onClick={() => handleSort("spacy_match_score")}>
-            SpaCy {sortKey === "spacy_match_score" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-          </th>
-          <th style={{ cursor: "pointer" }} onClick={() => handleSort("vector_match_score")}>
-            Vector {sortKey === "vector_match_score" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-          </th>
-          <th>PDF</th>
-        </tr>
-      </thead>
-      <tbody>
-        {sortedResults.map((r) => (
-          <tr key={r.resume_id}>
-            <td>{r.name}</td>
-            <td>{r.email}</td>
-            <td>
-              {r.resume_score !== undefined
-                ? r.resume_score
-                : r.vector_match_score?.toFixed(2)}
-            </td>
-            <td>
-              {highlight === "spacy" ? (
-                <b>{r.spacy_match_score !== undefined ? r.spacy_match_score : "-"}</b>
-              ) : (
-                r.spacy_match_score !== undefined ? r.spacy_match_score : "-"
-              )}
-            </td>
-            <td>
-              {highlight === "vector" ? (
-                <b>{r.vector_match_score !== undefined ? r.vector_match_score.toFixed(2) : "-"}</b>
-              ) : (
-                r.vector_match_score !== undefined ? r.vector_match_score.toFixed(2) : "-"
-              )}
-            </td>
-            <td>
-              {r.pdf_path ? (
-                <a
-                  href={`${API_BASE}/${r.pdf_path}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.link}
-                  style={{ whiteSpace: "nowrap" }}
-                >
-                  View PDF
-                </a>
-              ) : (
-                "-"
-              )}
-            </td>
+    <div className={styles.tableCard}>
+      <table className={styles.resultsTable}>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th style={{ cursor: "pointer" }} onClick={() => handleSort("openai_hr_score")}>
+              Score {sortKey === "openai_hr_score" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+            </th>
+            <th style={{ cursor: "pointer" }} onClick={() => handleSort("spacy_match_score")}>
+              SpaCy {sortKey === "spacy_match_score" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+            </th>
+            <th style={{ cursor: "pointer" }} onClick={() => handleSort("vector_match_score")}>
+              Vector {sortKey === "vector_match_score" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+            </th>
+            <th>PDF</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {sortedResults.map((r) => (
+            <tr key={r.resume_id}>
+              <td>{r.name}</td>
+              <td>{r.email}</td>
+              <td className={styles[getScoreClass(r.openai_hr_score)]}>
+                {r.openai_hr_score !== undefined ? r.openai_hr_score : "-"}
+              </td>
+              <td className={styles[getScoreClass(r.spacy_match_score)]}>
+                {highlight === "spacy" ? (
+                  <b>{r.spacy_match_score !== undefined ? r.spacy_match_score : "-"}</b>
+                ) : (
+                  r.spacy_match_score !== undefined ? r.spacy_match_score : "-"
+                )}
+              </td>
+              <td className={styles[getScoreClass(r.vector_match_score)]}>
+                {highlight === "vector" ? (
+                  <b>{r.vector_match_score !== undefined ? r.vector_match_score.toFixed(2) : "-"}</b>
+                ) : (
+                  r.vector_match_score !== undefined ? r.vector_match_score.toFixed(2) : "-"
+                )}
+              </td>
+              <td>
+                {r.pdf_path ? (
+                  <>
+                    <a
+                      href={`${API_BASE}/${r.pdf_path}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.neonBtn}
+                      style={{ marginRight: 8 }}
+                    >
+                      View PDF
+                    </a>
+                    <a
+                      href={`${API_BASE}/${r.pdf_path}`}
+                      download
+                      className={styles.neonBtn}
+                    >
+                      Download
+                    </a>
+                  </>
+                ) : (
+                  "-"
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
 function App() {
-  // State for screening
+  // THEME STATE
+  const [theme, setTheme] = useState(() => {
+    const stored = localStorage.getItem("theme");
+    if (stored) return stored;
+    return "dark";
+  });
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  // Resume screening state
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [jdText, setJdText] = useState("");
   const [topK, setTopK] = useState(5);
   const resumesInput = useRef();
   const jdFileInput = useRef();
+  const [error, setError] = useState(null);
 
-  // State for semantic search
+  // Semantic search state
   const [searchResults, setSearchResults] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchText, setSearchText] = useState("");
   const searchFileInput = useRef();
   const [searchTopK, setSearchTopK] = useState(5);
+  const [searchError, setSearchError] = useState(null);
 
   // Resume screening handler
   const handleScreening = async (e) => {
     e.preventDefault();
     setResults(null);
+    setError(null);
     setLoading(true);
 
     const form = new FormData();
@@ -137,7 +235,7 @@ function App() {
       });
       setResults(res.data);
     } catch (err) {
-      alert("Error: " + (err.response?.data?.detail || err.message));
+      setError(err.response?.data?.detail || err.message);
     }
     setLoading(false);
   };
@@ -146,6 +244,7 @@ function App() {
   const handleSemanticSearch = async (e) => {
     e.preventDefault();
     setSearchResults(null);
+    setSearchError(null);
     setSearchLoading(true);
 
     const form = new FormData();
@@ -156,24 +255,68 @@ function App() {
       form.append("query_text", searchText);
     }
     form.append("top_k", searchTopK);
-
     try {
       const res = await axios.post(`${API_BASE}/similarity_search/`, form, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setSearchResults(res.data.results);
     } catch (err) {
-      alert("Error: " + (err.response?.data?.detail || err.message));
+      setSearchError(err.response?.data?.detail || err.message);
     }
     setSearchLoading(false);
   };
 
+  // Clear DB handler
+  const handleClearDB = async () => {
+    if (
+      window.confirm(
+        "Are you sure you want to delete ALL database and FAISS data? This cannot be undone."
+      )
+    ) {
+      try {
+        const res = await fetch(`${API_BASE}/clear_db/`, {
+          method: "POST",
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(data.status || "Database cleared!");
+          setResults(null);
+          setSearchResults(null);
+        } else {
+          alert(data.error || "Failed to clear database.");
+        }
+      } catch (e) {
+        alert("Error clearing database.");
+      }
+    }
+  };
+
   return (
     <div className={styles.container}>
-      <h1>Resume Screening (SpaCy + FAISS)</h1>
+      <ThemeSwitch theme={theme} setTheme={setTheme} />
+      <h1 className={styles.neonText}>Resume Screening</h1>
+      <button
+        onClick={handleClearDB}
+        style={{
+          background: "red",
+          color: "white",
+          margin: "1em 0",
+          padding: "0.5em 1.5em",
+          border: "none",
+          borderRadius: "6px",
+          fontWeight: "bold",
+          cursor: "pointer",
+          fontSize: "1em"
+        }}
+      >
+        Clear All Data
+      </button>
+      <p className={styles.subtitle}>
+        AI-powered, advanced HR evaluator for your hiring needs.
+      </p>
 
       {/* Resume Screening Form */}
-      <form onSubmit={handleScreening}>
+      <form onSubmit={handleScreening} className={styles.formSection}>
         <label>
           Upload Resumes (PDF, multiple):
           <input type="file" accept="application/pdf" multiple ref={resumesInput} required />
@@ -182,7 +325,7 @@ function App() {
           Upload JD (PDF):
           <input type="file" accept="application/pdf" ref={jdFileInput} />
         </label>
-        <div style={{ textAlign: "center", margin: "10px 0" }}>
+        <div className={styles.orDivider}>
           <b>or</b>
         </div>
         <label>
@@ -194,40 +337,37 @@ function App() {
             placeholder="Paste job description here"
           />
         </label>
-        <label>
-          Top K Results:
-          <input
-            type="number"
-            min={1}
-            max={20}
-            value={topK}
-            onChange={(e) => setTopK(e.target.value)}
-            style={{ width: 60, marginLeft: 8 }}
-          />
-        </label>
-        <button type="submit" disabled={loading}>
+        {/* Top K stepper row */}
+        <div className={styles.stepperRow}>
+          <span className={styles.stepperLabel}>Top K Results:</span>
+          <Stepper value={topK} setValue={setTopK} min={1} max={20} />
+          <span className={styles.helpText}>Number of top matches to display (1-20)</span>
+        </div>
+        {error && <div className={styles.error}>{error}</div>}
+        <button type="submit" disabled={loading} className={styles.neonBtn}>
+          {loading ? <span className={styles.spinner}></span> : null}
           {loading ? "Screening..." : "Screen Resumes"}
         </button>
       </form>
 
-      {loading && <div className={styles.loading}>Loading...</div>}
+      {loading && <div className={styles.loading}><span className={styles.spinner}></span>Loading...</div>}
       {results && (
         <>
-          <h2>Screening Results</h2>
+          <h2 className={styles.neonSub}>Screening Results</h2>
           <ResultsTable results={results} highlight="spacy" />
         </>
       )}
 
-      <hr style={{ margin: "40px 0" }} />
+      <hr className={styles.sectionDivider} />
 
       {/* Semantic Search Form */}
-      <h2>Semantic Search (RAG) - Search in Full DB</h2>
-      <form onSubmit={handleSemanticSearch}>
+      <h2 className={styles.neonSub}>Semantic Search (RAG) - Search in Full DB</h2>
+      <form onSubmit={handleSemanticSearch} className={styles.formSection}>
         <label>
           Upload Query (PDF):
           <input type="file" accept="application/pdf" ref={searchFileInput} />
         </label>
-        <div style={{ textAlign: "center", margin: "10px 0" }}>
+        <div className={styles.orDivider}>
           <b>or</b>
         </div>
         <label>
@@ -239,29 +379,30 @@ function App() {
             placeholder="Paste search text or JD here"
           />
         </label>
-        <label>
-          Top K Results:
-          <input
-            type="number"
-            min={1}
-            max={20}
-            value={searchTopK}
-            onChange={(e) => setSearchTopK(e.target.value)}
-            style={{ width: 60, marginLeft: 8 }}
-          />
-        </label>
-        <button type="submit" disabled={searchLoading}>
+        <div className={styles.stepperRow}>
+          <span className={styles.stepperLabel}>Top K Results:</span>
+          <Stepper value={searchTopK} setValue={setSearchTopK} min={1} max={20} />
+          <span className={styles.helpText}>Number of top matches to display (1-20)</span>
+        </div>
+        {searchError && <div className={styles.error}>{searchError}</div>}
+        <button type="submit" disabled={searchLoading} className={styles.neonBtn}>
+          {searchLoading ? <span className={styles.spinner}></span> : null}
           {searchLoading ? "Searching..." : "Semantic Search"}
         </button>
       </form>
-
-      {searchLoading && <div className={styles.loading}>Searching...</div>}
+      {searchLoading && <div className={styles.loading}><span className={styles.spinner}></span>Searching...</div>}
       {searchResults && (
         <>
-          <h3>Semantic Search Results</h3>
+          <h3 className={styles.neonSub}>Semantic Search Results</h3>
           <ResultsTable results={searchResults} highlight="vector" />
         </>
       )}
+
+      <footer className={styles.footer}>
+        <span>
+          Made with <span className={styles.heart}>♥</span> for hiring teams.
+        </span>
+      </footer>
     </div>
   );
 }

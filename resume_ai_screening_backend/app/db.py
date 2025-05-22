@@ -38,6 +38,7 @@ def create_tables():
         resume_score REAL,
         openai_match_score REAL,
         vector_match_score REAL,
+        openai_hr_score REAL,
         applicant_feedback INTEGER,
         recruiter_feedback INTEGER,
         created_at TEXT,

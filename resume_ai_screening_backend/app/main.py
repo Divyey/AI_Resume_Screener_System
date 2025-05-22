@@ -10,6 +10,9 @@ import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
 
+from .openai_utils import get_openai_match_score
+from .openai_utils import get_openai_match_score, extract_resume_info_with_gpt4o_mini
+
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -86,6 +89,7 @@ def create_tables():
         resume_score REAL,
         spacy_match_score REAL,
         vector_match_score REAL,
+        openai_hr_score REAL,
         applicant_feedback INTEGER,
         recruiter_feedback INTEGER,
         created_at TEXT,
@@ -277,13 +281,16 @@ async def ai_screener(
         resume_embedding_bytes = resume_embedding.tobytes()
         now = datetime.now().isoformat()
         embedding_id = str(uuid.uuid4())
+        # --- OpenAI HR Score ---
+        openai_hr_score = get_openai_match_score(jd_content, resume_text)
+        # -----------------------
         c.execute('''
             INSERT INTO resumes (name, contact, email, location, links, pdf_path, education, skills, experience,
-                                 jd_id_applying_to, created_at, embedding_id, embedding_vector)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 jd_id_applying_to, created_at, embedding_id, embedding_vector, openai_hr_score)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             parsed["name"], parsed["contact"], parsed["email"], parsed["location"], parsed["links"], pdf_path,
-            parsed["education"], parsed["skills"], parsed["experience"], jd_id, now, embedding_id, resume_embedding_bytes
+            parsed["education"], parsed["skills"], parsed["experience"], jd_id, now, embedding_id, resume_embedding_bytes, openai_hr_score
         ))
         resume_id = c.lastrowid
         # Add to FAISS index and id_map
@@ -308,6 +315,7 @@ async def ai_screener(
             "resume_score": resume_score,
             "spacy_match_score": spacy_score,
             "vector_match_score": vector_score,
+            "openai_hr_score": openai_hr_score,
             "applicant_feedback": None,
             "recruiter_feedback": None,
             "created_at": now,
@@ -316,7 +324,16 @@ async def ai_screener(
     conn.commit()
     conn.close()
     save_faiss_index(index, id_map)
-    sorted_results = sorted(results, key=lambda x: x["resume_score"], reverse=True)[:top_k]
+    # Sort by OpenAI HR Score, then vector, then spacy
+    sorted_results = sorted(
+        results,
+        key=lambda x: (
+            x.get("openai_hr_score", 0) if x.get("openai_hr_score") is not None else 0,
+            x.get("vector_match_score", 0),
+            x.get("spacy_match_score", 0)
+        ),
+        reverse=True
+    )[:top_k]
     return sorted_results
 
 @app.post("/similarity_search/")

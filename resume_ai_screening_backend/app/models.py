@@ -23,6 +23,7 @@ class Resume(BaseModel):
     resume_score: Optional[float]
     openai_match_score: Optional[float]
     vector_match_score: Optional[float]
+    openai_hr_score: Optional[float]
     applicant_feedback: Optional[int]
     recruiter_feedback: Optional[int]
     created_at: str
