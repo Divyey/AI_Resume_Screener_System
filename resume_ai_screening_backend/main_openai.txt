@@ -1,0 +1,300 @@
+# import os
+# import json
+
+# from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+# from fastapi.middleware.cors import CORSMiddleware
+# from typing import List, Optional
+# from datetime import datetime
+# import uuid
+# import pdfplumber
+# import sqlite3
+# import openai
+# import numpy as np
+# from .db import create_tables, get_db  # Your helper file
+# from dotenv import load_dotenv
+# import re
+# import spacy
+
+# # Load SpaCy model once
+# nlp = spacy.load("en_core_web_sm")
+
+# load_dotenv()  # Load .env file
+# openai.api_key = os.getenv("OPENAI_API_KEY")  # Explicitly set the key
+
+# app = FastAPI()
+
+# # CORS
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["http://localhost:5173"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
+# openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# @app.post("/clear_db/")
+# def clear_db():
+#     import os
+#     try:
+#         os.remove('data/resume_screening.db')
+#         create_tables()
+#         return {"status": "Database cleared and reset."}
+#     except Exception as e:
+#         return {"error": str(e)}
+
+# @app.on_event("startup")
+# def startup():
+#     create_tables()
+#     os.makedirs("data/resumes", exist_ok=True)
+#     os.makedirs("data/jds", exist_ok=True)
+
+# def extract_text_from_pdf(pdf_path: str) -> str:
+#     text = ""
+#     with pdfplumber.open(pdf_path) as pdf:
+#         for page in pdf.pages:
+#             page_text = page.extract_text()
+#             if page_text:
+#                 text += page_text + "\n"
+#     return text
+
+# def parse_resume_with_openai(resume_text: str) -> dict:
+#     prompt = (
+#         "Extract the following fields from this resume:\n"
+#         "- Name\n- Email\n- Contact Number\n- Location (city, state, country or address)\n"
+#         "- Skills (comma-separated)\n- Education\n- Experience (in years, as a number)\n- Links (comma-separated, if any)\n\n"
+#         "Return the result as a JSON object with keys: name, email, contact, location, skills, education, experience, links.\n\n"
+#         f"Resume:\n{resume_text}\n"
+#     )
+#     try:
+#         response = openai.chat.completions.create(
+#             model="gpt-4o-mini",  # or "gpt-4o", "gpt-3.5-turbo", etc.
+#             messages=[
+#                 {"role": "system", "content": "You are a professional resume parser."},
+#                 {"role": "user", "content": prompt}
+#             ],
+#             max_tokens=512,
+#             temperature=0.0,
+#         )
+#         content = response.choices[0].message.content
+#         # Extract JSON object from response
+#         match = re.search(r"\{.*\}", content, re.DOTALL)
+#         if match:
+#             parsed = json.loads(match.group(0))
+#             # Post-process for schema consistency
+#             return {
+#                 "name": parsed.get("name", ""),
+#                 "contact": parsed.get("contact", ""),
+#                 "email": parsed.get("email", ""),
+#                 "location": parsed.get("location", ""),
+#                 "links": parsed.get("links", ""),
+#                 "education": parsed.get("education", ""),
+#                 "skills": parsed.get("skills", ""),
+#                 "experience": float(parsed.get("experience", 0))
+#             }
+#         else:
+#             return {
+#                 "name": "", "contact": "", "email": "", "location": "",
+#                 "links": "", "education": "", "skills": "", "experience": 0.0
+#             }
+#     except Exception as e:
+#         print(f"OpenAI resume parsing error: {e}")
+#         return {
+#             "name": "", "contact": "", "email": "", "location": "",
+#             "links": "", "education": "", "skills": "", "experience": 0.0
+#         }
+
+# def get_openai_match_score(resume_text, jd_text):
+#     prompt = (
+#         "You are a professional recruiter and HR expert. "
+#         "Given the following job description and resume, score the resume's fit for the job as a percentage (99.99%). "
+#         "Consider skills, experience, and education. Only output the score as a number (e.g., 87.45).\n\n"
+#         f"Job Description:\n{jd_text}\n\nResume:\n{resume_text}"
+#     )
+#     try:
+#         response = openai.chat.completions.create(
+#             model="gpt-4o-mini",
+#             messages=[
+#                 {"role": "system", "content": "You are a professional recruiter and HR expert."},
+#                 {"role": "user", "content": prompt}
+#             ],
+#             max_tokens=10,
+#             temperature=0.0,
+#         )
+#         content = response.choices[0].message.content.strip()
+#         # Extract float from response
+#         import re
+#         match = re.search(r"\d+\.\d+", content)
+#         if match:
+#             return float(match.group(0))
+#         match_int = re.search(r"\d+", content)
+#         if match_int:
+#             return float(match_int.group(0))
+#         return 0.0
+#     except Exception as e:
+#         print(f"OpenAI match score error: {e}")
+#         return 0.0
+
+# def dummy_vector_match_score(resume_text, jd_text):
+#     # Simulate a vector match score (replace with real embedding similarity)
+#     # Here, just a random score for demonstration
+#     return float(np.random.uniform(60, 100))
+
+# def parse_resume_with_spacy(resume_text: str) -> dict:
+#     doc = nlp(resume_text)
+#     # Simple regex for email, phone, links
+#     email_match = re.search(r'[\w\.-]+@[\w\.-]+', resume_text)
+#     phone_match = re.search(r'(\+?\d[\d\s\-]{8,}\d)', resume_text)
+#     links = re.findall(r'(https?://[^\s]+)', resume_text)
+#     # Try to extract name (first PERSON entity or first line)
+#     name = ""
+#     for ent in doc.ents:
+#         if ent.label_ == "PERSON":
+#             name = ent.text.strip()
+#             break
+#     if not name:
+#         name = resume_text.split('\n')[0].strip()
+#     # Extract education (look for lines with degree keywords)
+#     education = ""
+#     for line in resume_text.split('\n'):
+#         if re.search(r'\b(B\.?Tech|B\.?Sc|M\.?Sc|M\.?Tech|Bachelor|Master|Ph\.?D|B\.?A\.?|M\.?A\.?)\b', line, re.I):
+#             education = line.strip()
+#             break
+#     # Extract skills (look for 'Skills:' or bullet points)
+#     skills = ""
+#     skill_lines = []
+#     skill_section = False
+#     for line in resume_text.split('\n'):
+#         if re.search(r'skills?', line, re.I):
+#             skill_section = True
+#             continue
+#         if skill_section:
+#             if line.strip() == "" or re.match(r'^[A-Z][a-z]+:', line):
+#                 break
+#             skill_lines.append(line.strip())
+#     if skill_lines:
+#         skills = ', '.join([s.strip('•- ') for s in skill_lines if s])
+#     # Extract experience (look for years or 'Experience' section)
+#     experience = 0.0
+#     exp_match = re.search(r'(\d+)\s*(?:years?|yrs?)', resume_text, re.I)
+#     if exp_match:
+#         experience = float(exp_match.group(1))
+#     # Location: look for 'Location:' or first GPE entity
+#     location = ""
+#     for ent in doc.ents:
+#         if ent.label_ == "GPE":
+#             location = ent.text.strip()
+#             break
+#     if not location:
+#         loc_match = re.search(r'Location:\s*(.*)', resume_text)
+#         if loc_match:
+#             location = loc_match.group(1).strip()
+#     return {
+#         "name": name,
+#         "contact": phone_match.group(1) if phone_match else "",
+#         "email": email_match.group(0) if email_match else "",
+#         "location": location,
+#         "links": ', '.join(links),
+#         "education": education,
+#         "skills": skills,
+#         "experience": experience
+#     }
+# @app.post("/ai_screener/")
+# async def ai_screener(
+#     resumes: List[UploadFile] = File(...),
+#     jd_file: Optional[UploadFile] = File(None),
+#     jd_text: Optional[str] = Form(None),
+#     top_k: int = Form(5)
+# ):
+#     # 1. Get JD text
+#     if jd_file:
+#         jd_pdf_path = f"data/jds/{jd_file.filename}"
+#         with open(jd_pdf_path, "wb") as f:
+#             f.write(await jd_file.read())
+#         jd_content = extract_text_from_pdf(jd_pdf_path)
+#     elif jd_text:
+#         jd_content = jd_text
+#     else:
+#         raise HTTPException(status_code=400, detail="Provide either a JD PDF or JD text.")
+
+#     # 2. Insert JD into DB and get jd_id
+#     jd_embedding_id = str(uuid.uuid4())
+#     conn = get_db()
+#     c = conn.cursor()
+#     c.execute('''
+#         INSERT INTO jds (jd_job_title, jd_responsibilities, jd_req_education, jd_req_skill, jd_req_experience, embedding_id)
+#         VALUES (?, ?, ?, ?, ?, ?)
+#     ''', (
+#         "",  # Optionally parse/fill job title
+#         jd_content,
+#         "",
+#         "",
+#         0.0,
+#         jd_embedding_id
+#     ))
+#     jd_id = c.lastrowid
+#     conn.commit()
+
+#     results = []
+#     for file in resumes:
+#         pdf_path = f"data/resumes/{file.filename}"
+#         with open(pdf_path, "wb") as f:
+#             f.write(await file.read())
+#         resume_text = extract_text_from_pdf(pdf_path)
+#         print("Extracted Resume Text:", resume_text[:500])  # testing
+
+#         # parsed = parse_resume_with_openai(resume_text)
+#         parsed = parse_resume_with_spacy(resume_text)
+
+#         print("OpenAI Parsed Output:", parsed)  # testing
+
+#         # Insert resume into DB
+#         now = datetime.now().isoformat()
+#         embedding_id = str(uuid.uuid4())
+#         c.execute('''
+#             INSERT INTO resumes (name, contact, email, location, links, pdf_path, education, skills, experience,
+#                                  jd_id_applying_to, created_at, embedding_id)
+#             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+#         ''', (
+#             parsed["name"], parsed["contact"], parsed["email"], parsed["location"], parsed["links"], pdf_path,
+#             parsed["education"], parsed["skills"], parsed["experience"], jd_id, now, embedding_id
+#         ))
+#         resume_id = c.lastrowid
+
+#         # AI scoring
+#         openai_score = get_openai_match_score(resume_text, jd_content)
+#         vector_score = dummy_vector_match_score(resume_text, jd_content)
+#         resume_score = round((openai_score + vector_score) / 2, 2)
+
+#         # Prepare output
+#         results.append({
+#             "resume_id": resume_id,
+#             "name": parsed["name"],
+#             "contact": parsed["contact"],
+#             "email": parsed["email"],
+#             "location": parsed["location"],
+#             "links": parsed["links"],
+#             "pdf_path": pdf_path,
+#             "education": parsed["education"],
+#             "skills": parsed["skills"],
+#             "experience": parsed["experience"],
+#             "jd_id_applying_to": jd_id,  # <-- Now set!
+#             "resume_score": resume_score,
+#             "openai_match_score": round(openai_score, 2),
+#             "vector_match_score": round(vector_score, 2),
+#             "applicant_feedback": None,
+#             "recruiter_feedback": None,
+#             "created_at": now,
+#             "embedding_id": embedding_id
+#         })
+#     conn.commit()
+#     conn.close()
+#     # Sort by resume_score and return top_k
+#     sorted_results = sorted(results, key=lambda x: x["resume_score"], reverse=True)[:top_k]
+#     return sorted_results
+
+
+# @app.get("/")
+# async def Healthy_Check():
+#     return {"message": "Healthy :) Resume AI Screening Backend is running."}

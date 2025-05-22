@@ -1,0 +1,132 @@
+.container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f9fafb;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  
+  h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 30px;
+  }
+  
+  form {
+    background: white;
+    padding: 20px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 40px;
+  }
+  
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #34495e;
+  }
+  
+  input[type="file"],
+  textarea,
+  input[type="number"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease;
+  }
+  
+  input[type="file"]:focus,
+  textarea:focus,
+  input[type="number"]:focus {
+    border-color: #3498db;
+    outline: none;
+  }
+  
+  button {
+    background-color: #3498db;
+    color: white;
+    font-weight: 600;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: background-color 0.3s ease;
+    width: 100%;
+  }
+  
+  button:hover:not(:disabled) {
+    background-color: #2980b9;
+  }
+  
+  button:disabled {
+    background-color: #95a5a6;
+    cursor: not-allowed;
+  }
+  
+  /* --- Compact Results Table --- */
+  .resultsTable {
+    width: 100%;
+    border-collapse: collapse;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    background: white;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 20px;
+  }
+  
+  .resultsTable th,
+  .resultsTable td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #ecf0f1;
+    text-align: left;
+    font-size: 0.98rem;
+    color: #2c3e50;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+  
+  .resultsTable th {
+    background-color: #3498db;
+    color: white;
+    font-weight: 600;
+  }
+  
+  .resultsTable tr:hover {
+    background-color: #f1f8ff;
+  }
+  
+  .scoreDetails {
+    font-size: 0.8rem;
+    color: #7f8c8d;
+    margin-top: 4px;
+  }
+  
+  .link {
+    color: #2980b9;
+    text-decoration: underline;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  
+  .link:hover {
+    text-decoration: underline;
+    color: #1a5e96;
+  }
+  
+  .loading {
+    text-align: center;
+    font-size: 1.2rem;
+    color: #34495e;
+    margin-top: 20px;
+  }
+  

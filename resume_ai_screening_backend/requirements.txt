@@ -1,0 +1,25 @@
+# Core dependencies
+fastapi
+uvicorn
+pydantic
+python-dotenv
+
+# ML/NLP tools
+sentence-transformers
+faiss-cpu
+scikit-learn
+matplotlib
+plotly
+numpy==1.26.4
+spacy
+scipy
+pandas
+
+# PDF and form handling
+pdfplumber
+python-multipart
+
+# OpenAI
+openai
+
+# python3 -m pip install matplotlib numpy scikit-learn sentence-transformers --break-system-packages

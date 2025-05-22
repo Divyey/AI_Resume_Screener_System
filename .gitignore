@@ -1,0 +1,15 @@
+# Python
+resume_ai_screening_backend/venv/
+__pycache__/
+*.pyc
+
+# Node.js
+resume_ai_screening_frontend/node_modules/
+resume_ai_screening_frontend/dist/
+
+resume_ai_screening_frontend/public
+resume_ai_screening_frontend/src/assets
+
+# General
+*.log
+.env

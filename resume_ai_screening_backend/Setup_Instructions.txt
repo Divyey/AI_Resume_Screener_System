@@ -1,0 +1,19 @@
+# 1. Use Python 3.11 (not 3.12+ due to faiss/sentence-transformers compatibility)
+brew install python@3.11
+python3.11 --version
+
+# 2. Create and activate virtual environment
+python3.11 -m venv venv
+source venv/bin/activate
+
+# 3. Upgrade pip tooling
+pip install --upgrade pip setuptools wheel
+
+# 4. Install dependencies
+pip install -r requirements.txt
+
+# 5. Download spaCy English model
+python -m spacy download en_core_web_sm
+
+# 6. Run your FastAPI app
+uvicorn app.main:app --reload
