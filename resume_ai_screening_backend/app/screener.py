@@ -5,7 +5,7 @@ import numpy as np
 
 def filter_and_rank_resumes(jd_text, skills, education_level, min_experience, top_k):
     conn = get_db()
-    c = conn.cursor()
+    c = conn.cursor() 
     # Filter resumes by experience
     c.execute("""
         SELECT * FROM resumes
@@ -30,3 +30,4 @@ def filter_and_rank_resumes(jd_text, skills, education_level, min_experience, to
     # Sort by openai_match_score and vector_match_score
     filtered.sort(key=lambda x: ((x['openai_match_score'] or 0), x['vector_match_score']), reverse=True)
     return filtered[:top_k]
+#
