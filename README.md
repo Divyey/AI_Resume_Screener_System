@@ -71,8 +71,10 @@ cd resume_ai_screening_frontend
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
+Open in your browser.
+```
+http://localhost:5173/
+```
 ---
 
 ## Notes
